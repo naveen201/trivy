@@ -1,0 +1,28 @@
+pipeline {
+    agent any
+         
+    stages {
+        stage('trivy image scan') {
+            steps {
+                script {
+                    // Generate a unique timestamp
+                    def timestamp = new Date().format("MMddHHmm")
+                    def reportFile = "report_${timestamp}.html"
+
+                    // Run Trivy vulnerability scan and generate an HTML report
+                    sh 'trivy image --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o ${reportFile} ${IMAGE_NAME}:${DATE_TAG} || true'
+
+                    // Publish the Trivy HTML report in Jenkins
+                    publishHTML(target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: false,
+                        keepAll: true,
+                        reportDir: ".",
+                        reportFiles: "${reportFile}",
+                        reportName: "Trivy Report",
+                    ])
+                }
+            }
+        }
+    }
+}
