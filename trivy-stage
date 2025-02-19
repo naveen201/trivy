@@ -26,7 +26,7 @@ pipeline {
 
         stage('Upload Scan Report to AWS S3') {
             steps {
-                sh 'aws s3 cp ${REPORT_FILE} s3://vulnerability-scan-reports-trivy/datadash-backend-vulnerability-reports/'
+                sh 'aws s3 cp ${REPORT_FILE} s3://bucketurl-reports/'
             }
         }
 
