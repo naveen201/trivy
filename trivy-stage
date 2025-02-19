@@ -1,27 +1,38 @@
 pipeline {
     agent any
-         
+
+    environment {
+        TIMESTAMP = new Date().format("MMddHHmm")
+        REPORT_FILE = "report_${TIMESTAMP}.html"
+    }
+
     stages {
-        stage('trivy image scan') {
+        stage('Trivy Image Scan') {
             steps {
                 script {
-                    // Generate a unique timestamp
-                    def timestamp = new Date().format("MMddHHmm")
-                    def reportFile = "report_${timestamp}.html"
+                    sh 'trivy image --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o ${REPORT_FILE} ${IMAGE_NAME}:${DATE_TAG} || true'
 
-                    // Run Trivy vulnerability scan and generate an HTML report
-                    sh 'trivy image --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o ${reportFile} ${IMAGE_NAME}:${DATE_TAG} || true'
-
-                    // Publish the Trivy HTML report in Jenkins
                     publishHTML(target: [
                         allowMissing: true,
                         alwaysLinkToLastBuild: false,
                         keepAll: true,
                         reportDir: ".",
-                        reportFiles: "${reportFile}",
+                        reportFiles: "${REPORT_FILE}",
                         reportName: "Trivy Report",
                     ])
                 }
+            }
+        }
+
+        stage('Upload Scan Report to AWS S3') {
+            steps {
+                sh 'aws s3 cp ${REPORT_FILE} s3://vulnerability-scan-reports-trivy/datadash-backend-vulnerability-reports/'
+            }
+        }
+
+        stage('Delete Scan Report') {
+            steps {
+                sh 'rm -rf ${REPORT_FILE}'
             }
         }
     }
