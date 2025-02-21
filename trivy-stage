@@ -15,6 +15,54 @@ pipeline {
                 }
      }
 
+        stage('SonarQube Analysis') {
+            steps {
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                    script {
+                        sh """
+                        sonar-scanner \
+                            -Dsonar.projectKey=abc \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.token=$SONAR_TOKEN \
+                            -Dsonar.exclusions=Dockerfile
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
+
+================================================================================================================
+Why Use -D?
+The -D flag is used in Java-based applications to pass system properties, and SonarQube follows this convention.
+The -D in your sonar-scanner command stands for "Define a property".
+================================================================================================================
+stage('Quality Gate') {
+    steps {
+        timeout(time: 30, unit: 'MINUTES') {
+            // Wait for the quality gate result but do NOT abort the pipeline
+            waitForQualityGate abortPipeline: false
+        }
+    } 
+}
+        stage('Build Docker Image') { 
+            steps { 
+                script {
+                    app = docker.build("${IMAGE_NAME}:${DATE_TAG}")
+                }
+            }
+        }    
+
+        stage('Tag Image as Latest') {
+            steps {
+                script {
+                    sh "docker tag ${IMAGE_NAME}:${DATE_TAG} ${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
         stage('Trivy Image Scan') {
             steps {
                 script {
@@ -63,6 +111,26 @@ stage('Remove Unused Docker Images') {
     }
 }
 
+stage('Push the changed deployment file to Git') {
+    steps {
+        script {
+            sh "cat my-charts/values.yaml"
+            sh "sed -i '6s/tag.*/tag: ${DATE_TAG}/' my-charts/values.yaml"
+            sh "cat my-charts/values.yaml"
+
+            sh 'git config user.name "gituser"'
+            sh 'git config user.email "gituser@xyz.com"'
+            sh "git add ."
+            sh "git commit -m 'Updated the deployment file'"
+            sh "git branch"
+
+            // Securely fetching GitLab token from Jenkins Credentials Store
+            withCredentials([string(credentialsId: 'gitlab-token', variable: 'GITLAB_TOKEN')]) {
+                sh 'git push "https://gituser:${GITLAB_TOKEN}@code.xyz.com/abc-project/abc-repo.git" HEAD:refs/heads/production'
+            }
+        }
+    }
+}
 
 
 
