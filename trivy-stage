@@ -36,4 +36,30 @@ pipeline {
             }
         }
     }
+
+stage('Push Image to ECR') {
+    steps {
+        script {
+            sh 'aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ecr-url'
+            #aws ecr get-login-password --region ap-south-1 -->This AWS CLI command retrieves an authentication token (password) for your AWS ECR.
+            sh "docker push ${IMAGE_NAME}:${DATE_TAG}"
+
+        }
+    }
+}
+
+stage('Remove Unused Docker Images') {
+    steps {
+        sh "docker rmi ${IMAGE_NAME}:${DATE_TAG}"
+        sh "docker rmi ${IMAGE_NAME}:latest"
+    }
+}
+
+
+
+
+
+
+
+
 }
