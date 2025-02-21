@@ -7,6 +7,14 @@ pipeline {
     }
 
     stages {
+         stage('Clone repository') { 
+           steps { 
+              script{
+               checkout scm
+                    }
+                }
+     }
+
         stage('Trivy Image Scan') {
             steps {
                 script {
